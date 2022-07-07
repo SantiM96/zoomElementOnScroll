@@ -1,19 +1,32 @@
 window.addEventListener('DOMContentLoaded', () => {
     
+    // **Required**
+    // add the class "zoomedElement" to make a zoom
+
+    // **Optional**
+    // use the data-custom showed below in each element to change the values to set (the values shown are the default values)
+    // data-zoom='{"minWidth": 0, "maxWidth": 10000, "startEarlier": 150, "startFromCenter": true, "rangeAnimationUp": 100, "rangeAnimation": 150, "rangeAnimationDown": 100}'
     
+    // **Note**
+    // the elements to be zoomed must not have the same parent
     
+    // Ej: <div class="zoomedElement" data-zoom='{"minWidth": 0, "maxWidth": 10000, "startEarlier": 150}'>
+
+
     let dataToScroll = []
     const zoomedElement = (zoomedElement) => {
 
-        // Set values here
-        const minWidth = 0;
-        const maxWidth = 10000;
-        const startEarlier = 0; // Set this number in px to start earlier the animation (if you set this number as negative the animation will start later)
-        const startFromCenter = true; // Set true to start count when the element is in the middle to the window, set false for count from the top of the element. Note: if set in true, no use the class "zoomedElementScroll"
-        const rangeAnimationUp = 100; // Set this number in pixels to set the animation's growth range.
-        const rangeAnimation = 150; // Set this number in pixels to set the duration of animation's growth range.
-        const rangeAnimationDown = 100; // Set this number in pixels to set the decay range of the animation.
-        // Set values here
+        const customValues = zoomedElement.dataset.zoom != undefined ?  JSON.parse(zoomedElement.dataset.zoom) : undefined;
+
+        // Takes data-zoom or set default values
+        const minWidth = customValues != undefined && customValues.minWidth != undefined ? customValues.minWidth : 0;
+        const maxWidth = customValues != undefined && customValues.maxWidth != undefined ? customValues.maxWidth : 10000;
+        const startEarlier = customValues != undefined && customValues.startEarlier != undefined ? customValues.startEarlier : 150; // Set this number in px to start earlier the animation (if you set this number as negative the animation will start later)
+        const startFromCenter = customValues != undefined && customValues.startFromCenter != undefined ? customValues.startFromCenter : true; // Set true to start count when the element is in the middle to the window, set false for count from the top of the element. Note: if set in true, no use the class "zoomedElementScroll"
+        const rangeAnimationUp = customValues != undefined && customValues.rangeAnimationUp != undefined ? customValues.rangeAnimationUp : 100; // Set this number in pixels to set the animation's growth range.
+        const rangeAnimation = customValues != undefined && customValues.rangeAnimation != undefined ? customValues.rangeAnimation : 150; // Set this number in pixels to set the duration of animation's growth range.
+        const rangeAnimationDown = customValues != undefined && customValues.rangeAnimationDown != undefined ? customValues.rangeAnimationDown : 100; // Set this number in pixels to set the decay range of the animation.
+        // Takes data-zoom or set default values
         
         const bodyElement = document.querySelector('body');
         const zoomedElementParent = zoomedElement.parentNode;
@@ -21,7 +34,7 @@ window.addEventListener('DOMContentLoaded', () => {
         let newDiv = document.createElement('DIV');
 
         let initialRightPositionPercent = 0;
-        let necessaryPercentRight = 0
+        let necessaryPercentRight = 0;
 
         let percentAnimationUp = 0;
         let percentAnimationDown = 0;
@@ -36,7 +49,7 @@ window.addEventListener('DOMContentLoaded', () => {
         zoomedElement.style.position = 'absolute';
         // zoomedElement.style.top is setting from newDiv inserted
         zoomedElement.style.transition = 'all .1s ease';
-        
+
         const zoomedElementFn = () => {
             if (window.innerWidth > minWidth && window.innerWidth < maxWidth) {
                 
@@ -144,24 +157,16 @@ window.addEventListener('DOMContentLoaded', () => {
         
     };
     
+
     // minCounter _______ 0%
     // return ___________ percent
     // maxCounter _______ 100%
     const ruleOfFor = (minCounter, maxCounter, percent) => ((maxCounter - minCounter) / (100 / percent)) + minCounter;
 
 
-    zoomedElement(document.querySelector('.zoomedElement'))
-    zoomedElement(document.querySelector('.zoomedElement2'))
-    // zoomedElement(document.querySelector('.zoomedElement2'))
-    // for (const element of document.querySelectorAll('.zoomedElement')) {
-
-    //     // setTimeout(() => {
-    //         console.log(element);
-            
-    //         zoomedElement(element);
-    //     // }, 1500);
-
-    // }
+    for (const element of document.querySelectorAll('.zoomedElement')) {
+        zoomedElement(element);
+    }
     
 
 });
