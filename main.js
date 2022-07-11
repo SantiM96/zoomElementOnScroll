@@ -5,7 +5,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // **Optional**
     // use the data-custom showed below in each element to change the values to set (the values shown are the default values)
-    // data-zoom='{"minWidth": 0, "maxWidth": 10000, "startEarlier": 150, "startFromCenter": true, "rangeAnimationUp": 100, "rangeAnimation": 150, "rangeAnimationDown": 100, "respectSpace": true}'
+    // data-zoom='{"minWidth": 0, "maxWidth": 10000, "startEarlier": 150, "startFromCenter": true, "rangeAnimationUp": 100, "rangeAnimation": 150, "rangeAnimationDown": 100, "respectSpace": true, "invert": true}'
     
     // **Note**
     // the elements to be zoomed must not have the same parent
@@ -27,6 +27,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const rangeAnimation = customValues != undefined && customValues.rangeAnimation != undefined ? customValues.rangeAnimation : 150; // Set this number in pixels to set the duration of animation's growth range.
         const rangeAnimationDown = customValues != undefined && customValues.rangeAnimationDown != undefined ? customValues.rangeAnimationDown : 100; // Set this number in pixels to set the decay range of the animation.
         const respectSpace = customValues != undefined && customValues.respectSpace != undefined ? customValues.respectSpace : true; // Set this value in true for respect the space of the element, and set in false for grown up absolutely.
+        const invert = customValues != undefined && customValues.invert != undefined ? customValues.invert : true; // Set in false to use the normal order of the elements, and set in true to invert
         // Takes data-zoom or set default values
         
         const bodyElement = document.querySelector('body');
@@ -36,6 +37,7 @@ window.addEventListener('DOMContentLoaded', () => {
         let newDiv = document.createElement('DIV');
         let newDivSec = document.createElement('DIV');
         let scaleEl = 1;
+        let initialOffsetTop = 0;
 
         let initialRightPositionPercent = 0;
         let necessaryPercentRight = 0;
@@ -45,6 +47,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
         let percentScale = 1;
         let percentMarginRight = 0;
+        let percentScaleSec = 1;
+        let percentMarginRightSec = 0;
         
         let maxScaleDin = 0;
 
@@ -52,10 +56,12 @@ window.addEventListener('DOMContentLoaded', () => {
         zoomedElementParent.style.position = 'relative';
         zoomedElement.style.position = 'absolute';
         // zoomedElement.style.top is setting from newDiv inserted
-        zoomedElement.style.transition = 'all .1s ease';
+        zoomedElement.style.transition = 'all .2s ease';
 
         const zoomedElementFn = () => {
             if (window.innerWidth > minWidth && window.innerWidth < maxWidth) {
+
+                initialOffsetTop = zoomedElement.offsetTop;
                 
                 if (startFromCenter) {
                     scrollPosition = scrollPosition - (window.innerHeight / 2) + (zoomedElement.clientHeight / 2);
@@ -80,10 +86,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
                         // calculate maximum scale
                         maxScaleDinSec = bodyElement.clientWidth / secondElement.clientWidth;
-                        necessaryPercentRightSec = ((((1 / (bodyElement.offsetWidth / secondElement.offsetWidth)) * 100 ) - 100 ) * -1 ) / 2 // get percent necessary "right" for leave centered the element
+                        necessaryPercentRightSec = ((((1 / (bodyElement.offsetWidth / secondElement.offsetWidth)) * 100 ) - 100 ) * -1 ) / 2; // get percent necessary "right" for leave centered the element
 
-                    }
-                }
+                    };
+                };
                 
                 // create substitute div if do not exist
                 for (const el of zoomedElement.parentNode.childNodes) {
@@ -95,8 +101,8 @@ window.addEventListener('DOMContentLoaded', () => {
                         zoomedElementParent.insertBefore(newDiv, zoomedElement);
                         zoomedElement.style.top = `${newDiv.offsetTop}px`;
 
-                    }
-                }
+                    };
+                };
                 
                 // calculate right needed to be above the created element
                 initialRightPositionPercent = (1 / (bodyElement.clientWidth / (bodyElement.clientWidth - (zoomedElement.clientWidth + newDiv.offsetLeft)))) * 100;
@@ -108,23 +114,29 @@ window.addEventListener('DOMContentLoaded', () => {
                 // add data to use onscroll
                 dataToScroll.push({
                     zoomedElement: zoomedElement,
-                    secondElement: {
-                        el: secondElement,
-                        initialRightPositionPercentSec: initialRightPositionPercentSec,
-                        maxScaleDinSec: maxScaleDinSec,
-                        necessaryPercentRightSec,
-                        newDivSec: newDivSec
-                    },
                     scrollPosition: scrollPosition,
                     rangeAnimationUp: rangeAnimationUp,
                     rangeAnimation: rangeAnimation,
                     rangeAnimationDown: rangeAnimationDown,
                     maxScaleDin: maxScaleDin,
                     newDiv: newDiv,
+                    initialOffsetTop: initialOffsetTop,
                     initialRightPositionPercent: initialRightPositionPercent,
                     necessaryPercentRight: necessaryPercentRight,
                     respectSpace: respectSpace
                 });
+                if (secondElement != undefined) {
+                    
+                    dataToScroll[0].secondElement = {
+                        el: secondElement,
+                        invert: invert,
+                        newDivSec: newDivSec,
+                        initialRightPositionPercentSec: initialRightPositionPercentSec,
+                        maxScaleDinSec: maxScaleDinSec,
+                        necessaryPercentRightSec: necessaryPercentRightSec
+                    };
+
+                };
                 
                 window.onscroll = () => {
 
@@ -151,20 +163,33 @@ window.addEventListener('DOMContentLoaded', () => {
                                 obj.newDiv.style.width = `${obj.zoomedElement.clientWidth * scaleEl}px`;
                                 obj.newDiv.style.height = `${obj.zoomedElement.clientHeight * scaleEl}px`;
                                 
-                                obj.zoomedElement.style.top = `${obj.newDiv.offsetTop + ((obj.newDiv.clientHeight - obj.zoomedElement.clientHeight) / 2)}px`;
+                                obj.zoomedElement.style.top = `${ruleOfFor(initialOffsetTop, obj.newDiv.offsetTop + ((obj.newDiv.clientHeight - obj.zoomedElement.clientHeight) / 2), percentAnimationUp)}px`;
                     
+                                if (obj.secondElement != undefined) {
+    
+                                    // calculate the values of the animation when growing up
+                                    percentScaleSec = ruleOfFor(1, obj.secondElement.maxScaleDinSec, percentAnimationUp); // Return value between 1 and maxScaleDin
+                                    percentMarginRightSec = ruleOfFor(obj.secondElement.initialRightPositionPercentSec, obj.secondElement.necessaryPercentRightSec, percentAnimationUp); // Return value between initialRightPositionPercent and necessaryPercentRight
+    
+                                    // applied values on real time
+                                    obj.secondElement.el.style.transform = `scale(${percentScaleSec})`;
+                                    obj.secondElement.el.style.right = `${percentMarginRightSec}%`;
+
+                                    // modify the substituteSecEl
+                                    obj.secondElement.newDivSec.style.width = `${obj.secondElement.el.clientWidth * scaleEl}px`;
+                                    obj.secondElement.newDivSec.style.height = `${obj.secondElement.el.clientHeight * scaleEl}px`;
+                                    
+                                    obj.secondElement.el.style.top = `${obj.secondElement.newDivSec.offsetTop + ((obj.secondElement.newDivSec.clientHeight - obj.secondElement.el.clientHeight) / 2)}px`;
+
+                                    if (obj.secondElement.invert) {
+
+                                        obj.zoomedElement.style.top = `${ruleOfFor(obj.secondElement.el.offsetTop, obj.zoomedElement.clientHeight / 2, percentAnimationUp)}px`;
+                                        obj.secondElement.el.style.top = `${ruleOfFor(obj.secondElement.newDivSec.offsetTop, ((obj.zoomedElement.clientHeight * 2) + (obj.secondElement.el.clientHeight / 2)), percentAnimationUp)}px`;
+
+                                    };
+
+                                };
                             };
-
-                            if (obj.secondElement != undefined) {
-
-                                // calculate the values of the animation when growing up
-                                percentScale = ruleOfFor(1, obj.maxScaleDin, percentAnimationUp); // Return value between 1 and maxScaleDin
-                                percentMarginRight = ruleOfFor(obj.initialRightPositionPercent, obj.necessaryPercentRight, percentAnimationUp); // Return value between initialRightPositionPercent and necessaryPercentRight
-
-                                // applied values on real time
-                                obj.zoomedElement.style.transform = `scale(${percentScale})`;
-                                obj.zoomedElement.style.right = `${percentMarginRight}%`;
-                            }
 
                         };
                         
@@ -173,6 +198,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
                             obj.zoomedElement.style.transform = `scale(${obj.maxScaleDin})`;
                             obj.zoomedElement.style.right = `${obj.necessaryPercentRight}%`;
+
+                            if (obj.secondElement != undefined) {
+    
+                                obj.secondElement.el.style.transform = `scale(${obj.maxScaleDinSec})`;
+                                obj.secondElement.el.style.right = `${obj.necessaryPercentRightSec}%`;
+
+                            };
 
                         };
 
@@ -197,8 +229,33 @@ window.addEventListener('DOMContentLoaded', () => {
                                 obj.newDiv.style.width = `${obj.zoomedElement.clientWidth * scaleEl}px`;
                                 obj.newDiv.style.height = `${obj.zoomedElement.clientHeight * scaleEl}px`;
                                 
-                                obj.zoomedElement.style.top = `${obj.newDiv.offsetTop + ((obj.newDiv.clientHeight - obj.zoomedElement.clientHeight) / 2)}px`;
+                                obj.zoomedElement.style.top = `${ruleOfFor(initialOffsetTop, obj.newDiv.offsetTop + ((obj.newDiv.clientHeight - obj.zoomedElement.clientHeight) / 2), percentAnimationUp)}px`;
                                 
+                                if (obj.secondElement != undefined) {
+    
+                                    // calculate the values of the animation when growing up
+                                    percentScaleSec = ruleOfFor(1, obj.secondElement.maxScaleDinSec, percentAnimationDown); // Return value between 1 and maxScaleDin
+                                    percentMarginRightSec = ruleOfFor(obj.secondElement.initialRightPositionPercentSec, obj.secondElement.necessaryPercentRightSec, percentAnimationDown); // Return value between initialRightPositionPercent and necessaryPercentRight
+    
+                                    // applied values on real time
+                                    obj.secondElement.el.style.transform = `scale(${percentScaleSec})`;
+                                    obj.secondElement.el.style.right = `${percentMarginRightSec}%`;
+
+                                    // modify the substituteSecEl
+                                    obj.secondElement.newDivSec.style.width = `${obj.secondElement.el.clientWidth * scaleEl}px`;
+                                    obj.secondElement.newDivSec.style.height = `${obj.secondElement.el.clientHeight * scaleEl}px`;
+                                    
+                                    obj.secondElement.el.style.top = `${obj.secondElement.newDivSec.offsetTop + ((obj.secondElement.newDivSec.clientHeight - obj.secondElement.el.clientHeight) / 2)}px`;
+
+                                    if (obj.secondElement.invert) {
+
+                                        obj.zoomedElement.style.top = `${ruleOfFor(obj.secondElement.el.offsetTop, obj.zoomedElement.clientHeight / 2, percentAnimationDown)}px`;
+                                        obj.secondElement.el.style.top = `${ruleOfFor(obj.secondElement.newDivSec.offsetTop, ((obj.zoomedElement.clientHeight * 2) + (obj.secondElement.el.clientHeight / 2)), percentAnimationDown)}px`;
+
+                                    };
+
+                                };
+
                             };
 
                         };
@@ -212,8 +269,20 @@ window.addEventListener('DOMContentLoaded', () => {
 
                             if (obj.respectSpace) {
                                 
-                                obj.zoomedElement.style.top = `${obj.newDiv.offsetTop}px`;
+                                obj.zoomedElement.style.top = `${initialOffsetTop}px`;
+                                console.log(initialOffsetTop);
                                 obj.newDiv.style.width = zoomedElement.style.width != 'auto' ? zoomedElement.style.width : zoomedElement.offsetWidth + "px";
+
+                                if (obj.secondElement != undefined) {
+
+                                    // Set default values
+                                    obj.secondElement.el.style.transform = `scale(1)`;
+                                    obj.secondElement.el.style.right = `${obj.secondElement.initialRightPositionPercentSec}%`;
+    
+                                    obj.secondElement.el.style.top = `${obj.secondElement.newDivSec.offsetTop}px`;
+                                    obj.secondElement.newDivSec.style.width = obj.secondElement.el.style.width != 'auto' ? obj.secondElement.el.style.width : obj.secondElement.el.offsetWidth + "px";
+                                    
+                                };
                             
                             };
 
