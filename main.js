@@ -79,7 +79,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         newDivSec.setAttribute("class", "substituteSecEl");
                         zoomedElementParent.insertBefore(newDivSec, secondElement);
                         secondElement.style.top = `${newDivSec.offsetTop}px`;
-
+                        secondElement.style.position = 'absolute';
 
                         // calculate right needed to be above the created element
                         initialRightPositionPercentSec = (1 / (bodyElement.clientWidth / (bodyElement.clientWidth - (secondElement.clientWidth + newDiv.offsetLeft)))) * 100;
