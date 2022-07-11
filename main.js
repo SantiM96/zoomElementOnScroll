@@ -5,7 +5,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // **Optional**
     // use the data-custom showed below in each element to change the values to set (the values shown are the default values)
-    // data-zoom='{"minWidth": 0, "maxWidth": 10000, "startEarlier": 150, "startFromCenter": true, "rangeAnimationUp": 100, "rangeAnimation": 150, "rangeAnimationDown": 100}'
+    // data-zoom='{"minWidth": 0, "maxWidth": 10000, "startEarlier": 150, "startFromCenter": true, "rangeAnimationUp": 100, "rangeAnimation": 150, "rangeAnimationDown": 100, "respectSpace": true}'
     
     // **Note**
     // the elements to be zoomed must not have the same parent
@@ -26,12 +26,16 @@ window.addEventListener('DOMContentLoaded', () => {
         const rangeAnimationUp = customValues != undefined && customValues.rangeAnimationUp != undefined ? customValues.rangeAnimationUp : 100; // Set this number in pixels to set the animation's growth range.
         const rangeAnimation = customValues != undefined && customValues.rangeAnimation != undefined ? customValues.rangeAnimation : 150; // Set this number in pixels to set the duration of animation's growth range.
         const rangeAnimationDown = customValues != undefined && customValues.rangeAnimationDown != undefined ? customValues.rangeAnimationDown : 100; // Set this number in pixels to set the decay range of the animation.
+        const respectSpace = customValues != undefined && customValues.respectSpace != undefined ? customValues.respectSpace : true; // Set this value in true for respect the space of the element, and set in false for grown up absolutely.
         // Takes data-zoom or set default values
         
         const bodyElement = document.querySelector('body');
         const zoomedElementParent = zoomedElement.parentNode;
+        let secondElement = undefined;
         let scrollPosition = zoomedElement.offsetTop;
         let newDiv = document.createElement('DIV');
+        let newDivSec = document.createElement('DIV');
+        let scaleEl = 1;
 
         let initialRightPositionPercent = 0;
         let necessaryPercentRight = 0;
@@ -56,14 +60,36 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (startFromCenter) {
                     scrollPosition = scrollPosition - (window.innerHeight / 2) + (zoomedElement.clientHeight / 2);
                 };
-                
+
                 scrollPosition -= startEarlier;
+
+                // check second element
+                for (const el of zoomedElement.parentNode.childNodes) {
+                    if (el.nodeName != '#text' && el.classList.contains('secZoomedElement')) {
+                        
+                        secondElement = el
+                        newDivSec.style.width = secondElement.style.width != 'auto' ? secondElement.style.width : secondElement.offsetWidth + "px";
+                        newDivSec.style.height = secondElement.offsetHeight + "px";
+                        newDivSec.setAttribute("class", "substituteSecEl");
+                        zoomedElementParent.insertBefore(newDivSec, secondElement);
+                        secondElement.style.top = `${newDivSec.offsetTop}px`;
+
+
+                        // calculate right needed to be above the created element
+                        initialRightPositionPercentSec = (1 / (bodyElement.clientWidth / (bodyElement.clientWidth - (secondElement.clientWidth + newDiv.offsetLeft)))) * 100;
+
+                        // calculate maximum scale
+                        maxScaleDinSec = bodyElement.clientWidth / secondElement.clientWidth;
+                        necessaryPercentRightSec = ((((1 / (bodyElement.offsetWidth / secondElement.offsetWidth)) * 100 ) - 100 ) * -1 ) / 2 // get percent necessary "right" for leave centered the element
+
+                    }
+                }
                 
                 // create substitute div if do not exist
                 for (const el of zoomedElement.parentNode.childNodes) {
                     if (!(el.nodeName != '#text' && el.classList.contains('substituteEl'))) {
                         
-                        newDiv.style.width = zoomedElement.offsetWidth + "px";
+                        newDiv.style.width = zoomedElement.style.width != 'auto' ? zoomedElement.style.width : zoomedElement.offsetWidth + "px";
                         newDiv.style.height = zoomedElement.offsetHeight + "px";
                         newDiv.setAttribute("class", "substituteEl");
                         zoomedElementParent.insertBefore(newDiv, zoomedElement);
@@ -82,13 +108,22 @@ window.addEventListener('DOMContentLoaded', () => {
                 // add data to use onscroll
                 dataToScroll.push({
                     zoomedElement: zoomedElement,
+                    secondElement: {
+                        el: secondElement,
+                        initialRightPositionPercentSec: initialRightPositionPercentSec,
+                        maxScaleDinSec: maxScaleDinSec,
+                        necessaryPercentRightSec,
+                        newDivSec: newDivSec
+                    },
                     scrollPosition: scrollPosition,
                     rangeAnimationUp: rangeAnimationUp,
                     rangeAnimation: rangeAnimation,
                     rangeAnimationDown: rangeAnimationDown,
                     maxScaleDin: maxScaleDin,
+                    newDiv: newDiv,
                     initialRightPositionPercent: initialRightPositionPercent,
-                    necessaryPercentRight: necessaryPercentRight
+                    necessaryPercentRight: necessaryPercentRight,
+                    respectSpace: respectSpace
                 });
                 
                 window.onscroll = () => {
@@ -99,15 +134,37 @@ window.addEventListener('DOMContentLoaded', () => {
                         if (window.scrollY >= obj.scrollPosition && window.scrollY < obj.scrollPosition + obj.rangeAnimationUp) {
 
                             // calculate the percent of the animation according with the rangeAnimationUp
-                            percentAnimationUp = (((window.scrollY - obj.scrollPosition) / obj.rangeAnimationUp) * 100)
+                            percentAnimationUp = (((window.scrollY - obj.scrollPosition) / obj.rangeAnimationUp) * 100);
 
                             // calculate the values of the animation when growing up
-                            percentScale = ruleOfFor(1, obj.maxScaleDin, percentAnimationUp) // Return value between 1 and maxScaleDin
-                            percentMarginRight = ruleOfFor(obj.initialRightPositionPercent, obj.necessaryPercentRight, percentAnimationUp) // Return value between initialRightPositionPercent and necessaryPercentRight
+                            percentScale = ruleOfFor(1, obj.maxScaleDin, percentAnimationUp); // Return value between 1 and maxScaleDin
+                            percentMarginRight = ruleOfFor(obj.initialRightPositionPercent, obj.necessaryPercentRight, percentAnimationUp); // Return value between initialRightPositionPercent and necessaryPercentRight
 
                             // applied values on real time
                             obj.zoomedElement.style.transform = `scale(${percentScale})`;
                             obj.zoomedElement.style.right = `${percentMarginRight}%`;
+
+                            if (obj.respectSpace) {
+                                
+                                scaleEl = Number(obj.zoomedElement.style.transform.split('scale(')[1].split(')')[0]);
+                                
+                                obj.newDiv.style.width = `${obj.zoomedElement.clientWidth * scaleEl}px`;
+                                obj.newDiv.style.height = `${obj.zoomedElement.clientHeight * scaleEl}px`;
+                                
+                                obj.zoomedElement.style.top = `${obj.newDiv.offsetTop + ((obj.newDiv.clientHeight - obj.zoomedElement.clientHeight) / 2)}px`;
+                    
+                            };
+
+                            if (obj.secondElement != undefined) {
+
+                                // calculate the values of the animation when growing up
+                                percentScale = ruleOfFor(1, obj.maxScaleDin, percentAnimationUp); // Return value between 1 and maxScaleDin
+                                percentMarginRight = ruleOfFor(obj.initialRightPositionPercent, obj.necessaryPercentRight, percentAnimationUp); // Return value between initialRightPositionPercent and necessaryPercentRight
+
+                                // applied values on real time
+                                obj.zoomedElement.style.transform = `scale(${percentScale})`;
+                                obj.zoomedElement.style.right = `${percentMarginRight}%`;
+                            }
 
                         };
                         
@@ -123,15 +180,26 @@ window.addEventListener('DOMContentLoaded', () => {
                         if (window.scrollY >= obj.scrollPosition + obj.rangeAnimationUp + obj.rangeAnimation && window.scrollY < obj.scrollPosition + obj.rangeAnimationUp + obj.rangeAnimation + obj.rangeAnimationDown) {
                             
                             // calculate the percent of the animation according with the rangeAnimationDown (Added this expression " - 100) * -1) " to invert )
-                            percentAnimationDown = ((((window.scrollY - (obj.scrollPosition + obj.rangeAnimationUp + obj.rangeAnimation)) / obj.rangeAnimationDown) * 100) - 100) * -1
+                            percentAnimationDown = ((((window.scrollY - (obj.scrollPosition + obj.rangeAnimationUp + obj.rangeAnimation)) / obj.rangeAnimationDown) * 100) - 100) * -1;
 
                             // calculate the values of the animation when decreasing
-                            percentScale = ruleOfFor(1, obj.maxScaleDin, percentAnimationDown) // Return value between 1 and maxScaleDin
-                            percentMarginRight = ruleOfFor(obj.initialRightPositionPercent, obj.necessaryPercentRight, percentAnimationDown) // Return value between initialRightPositionPercent and necessaryPercentRight
+                            percentScale = ruleOfFor(1, obj.maxScaleDin, percentAnimationDown); // Return value between 1 and maxScaleDin
+                            percentMarginRight = ruleOfFor(obj.initialRightPositionPercent, obj.necessaryPercentRight, percentAnimationDown); // Return value between initialRightPositionPercent and necessaryPercentRight
 
                             // applied values on real time
                             obj.zoomedElement.style.transform = `scale(${percentScale})`;
                             obj.zoomedElement.style.right = `${percentMarginRight}%`;
+
+                            if (obj.respectSpace) {
+                                
+                                scaleEl = Number(obj.zoomedElement.style.transform.split('scale(')[1].split(')')[0]);
+                                
+                                obj.newDiv.style.width = `${obj.zoomedElement.clientWidth * scaleEl}px`;
+                                obj.newDiv.style.height = `${obj.zoomedElement.clientHeight * scaleEl}px`;
+                                
+                                obj.zoomedElement.style.top = `${obj.newDiv.offsetTop + ((obj.newDiv.clientHeight - obj.zoomedElement.clientHeight) / 2)}px`;
+                                
+                            };
 
                         };
 
@@ -142,6 +210,13 @@ window.addEventListener('DOMContentLoaded', () => {
                             obj.zoomedElement.style.transform = `scale(1)`;
                             obj.zoomedElement.style.right = `${obj.initialRightPositionPercent}%`;
 
+                            if (obj.respectSpace) {
+                                
+                                obj.zoomedElement.style.top = `${obj.newDiv.offsetTop}px`;
+                                obj.newDiv.style.width = zoomedElement.style.width != 'auto' ? zoomedElement.style.width : zoomedElement.offsetWidth + "px";
+                            
+                            };
+
                         };
 
                     };
@@ -150,7 +225,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
             };
         };
-        
         
         zoomedElementFn()
         window.addEventListener('resize', zoomedElementFn);
